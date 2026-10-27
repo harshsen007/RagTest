@@ -1,0 +1,41 @@
+Yes, it's a good learning project, with one important correction to how you're framing it. As described, it's really two things stuck together, and only one of them is RAG.
+
+**What's RAG and what's agentic**
+
+- **RAG** is retrieving relevant chunks from documents (your testing strategy PDF/DOCX) and giving them to the LLM as context. That part fits well: the strategy doc is the knowledge base, and the agent looks up what to test and how.
+- **Agentic** is the LLM deciding which tools to call (read code, write tests, run pytest, read failures, fix, retry). That's the loop that makes the tests actually happen.
+
+So the architecture is: **strategy doc → RAG → agent plans → tools execute → results feed back to the agent.**
+
+**Why it's a good idea**
+
+- It teaches both concepts in one project, and they connect naturally.
+- A single-file codebase is the right scope. It keeps retrieval and tool design simple while you learn.
+- There's a real feedback signal (tests pass or fail), which is rare in LLM projects and makes the agent loop easy to evaluate.
+
+**Things to watch out for**
+
+1. **Chunking the strategy doc matters.** Split by headings or sections (e.g. "Unit tests", "Edge cases", "Mocking rules") rather than fixed character counts. Strategy docs are structured, so use that.
+2. **Don't RAG the code file.** One file usually fits in the context window, so just pass it whole. Retrieval over a single small file adds complexity without benefit. Only add code retrieval later when you move to multi-file repos (and then, chunk by function/class using something like tree-sitter or Python's `ast`).
+3. **Sandbox the execution.** The agent will run generated code. Use a Docker container or at minimum a temp directory with timeouts. Never run LLM-generated code directly on your machine.
+4. **Cap the loop.** Set a max number of iterations (e.g. 5) so a failing test doesn't spin forever.
+5. **Check that tests are meaningful.** An agent can make tests pass by writing trivial assertions. Consider also measuring coverage (`coverage.py`) or mutation testing as a quality signal.
+
+**Suggested tools for the agent**
+
+- `read_code()`: returns the source file
+- `search_strategy(query)`: the RAG retrieval over the doc
+- `write_test_file(content)`: saves the test file
+- `run_tests()`: executes pytest in the sandbox, returns output
+- `get_coverage()`: optional, returns coverage report
+
+**A sensible build order**
+
+1. Start with just the RAG: ingest the PDF/DOCX, chunk, embed, and make `search_strategy` work. Test it by asking questions about the doc.
+2. Hand-write the agent loop without a framework first (LLM call, parse tool call, execute, append result, repeat). It's about 50 lines and teaches you what frameworks hide.
+3. Add the test execution tool and the retry-on-failure loop.
+4. Only then try a framework like LangGraph, and compare.
+5. Pick a language for the target code (Python + pytest is the easiest start).
+
+**Tech suggestions**: Python, the Anthropic SDK with tool use, a simple vector store (Chroma or FAISS), `pypdf` and `python-docx` for parsing, and `pytest` plus Docker for execution.
+

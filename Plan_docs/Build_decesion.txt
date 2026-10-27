@@ -1,0 +1,94 @@
+1\. Document parsing
+
+Pick: pypdf for PDF and python-docx for DOCX.
+
+Why: They are simple, free, and good enough for text-based documents. DOCX is easier than PDF because headings come through as real structure, so prefer it if you control the format. Scanned PDFs would need OCR, but you can ignore that for now.
+
+2\. Chunking strategy
+
+Pick: Split by headings and sections, with a size cap of around 300–500 tokens and a small overlap.
+
+Why: Strategy documents are structured, so a chunk like "Mocking rules" stays intact. Fixed-size splitting often cuts a rule in half.
+
+3\. Embedding model
+
+Pick: Start locally with a sentence-transformers model like BAAI/bge-small-en-v1.5 or all-MiniLM-L6-v2.
+
+Why: It is free, runs on a laptop, needs no API key, and is sufficient for a small document. Anthropic does not offer an embedding model; its documentation recommends Voyage AI if you want a hosted one. OpenAI embeddings are another common choice. Check the MTEB leaderboard before finalizing, since newer models appear often.
+
+Rule: Use the same model for indexing and querying.
+
+4\. Vector store
+
+Pick: Chroma.
+
+Why: It runs locally with no server, has a simple API, persists to disk, and handles metadata filtering. FAISS is lower-level, and Pinecone or Qdrant Cloud may be unnecessary for one document. Move to pgvector or Qdrant if this becomes a real product.
+
+5\. Retrieval settings
+
+Pick: Top-k of 3–5, plain similarity search, and no reranker at first.
+
+Why: With a small document, the basics should work. Add hybrid search (BM25 plus vectors) or a reranker later only if you notice retrieval misses, and measure the results before adding them.
+
+6\. LLM
+
+Pick: nvidia/nemotron-3-ultra-550b-a55b
+
+Why: Reliable tool use matters most for your agent loop, and generating good tests from code requires a capable model. Haiku keeps costs low during development.
+
+7\. Agent orchestration
+
+Pick: A hand-written loop first, then LangGraph as a comparison.
+
+Why: Writing the loop yourself teaches you what tool calling actually is. Frameworks make more sense once you understand what they hide.
+
+8\. Code execution and sandbox
+
+Pick: A Docker container with a timeout, running pytest.
+
+Why: The agent runs LLM-generated code, so isolation protects your machine. A temporary directory plus subprocess timeouts is the minimum if Docker feels too heavy at first.
+
+9\. Prompt design
+
+Pick: A system promptnvidia/nemotron-3-ultra-550b-a55b that defines the agent's role, the tools, and the rule to consult the strategy document before writing tests. Retrieved chunks should be provided as tool results.
+
+Why: Making retrieval a tool called search_strategy lets the agent decide when and what to look up. This is the agentic part.
+
+10\. Evaluation
+
+Pick: Two levels of evaluation: (a) a handful of hand-written questions to check whether retrieval returns the right chunk, and (b) end-to-end metrics such as tests passing and the coverage.py percentage.
+
+Why: Without evaluation, you cannot tell whether a change helped. Your pass/fail signal makes this easier than in most RAG projects.
+
+11\. Tooling and configuration
+
+Pick: Python 3.11 or newer, a virtual environment, a .env file for API keys, and a simple folder structure with ingest/, agent/, tools/, and sandbox/.
+
+Why: This keeps the project clean as it grows.
+
+Quick summary
+
+Use pypdf and python-docx for document parsing, section-based chunking for splitting documents, a local sentence-transformers model for embeddings, and Chroma as the vector store. Start with top-3 to top-5 similarity search and no reranker. Use Claude for the LLM, build the agent loop manually before trying LangGraph, and run generated code in a Docker sandbox with timeouts. Evaluate retrieval quality and test results, and keep the project structure simple.
+
+
+1\. Document Parsing - pypdf, python-docx
+
+2\. Chunking Strategy - Heading-based chunking, 300–500 tokens, small overlap
+
+3\. Embedding Model - BAAI/bge-small-en-v1.5, all-MiniLM-L6-v2
+
+4\. Vector Store - Chroma
+
+5\. Retrieval - Similarity search, top-k 3–5, no reranker initially
+
+6\. LLM - nvidia/nemotron-3-ultra-550b-a55b
+
+7\. Agent Orchestration - Hand-written Python loop, LangGraph
+
+8\. Code Execution and Sandbox - Docker, pytest, subprocess timeouts
+
+9\. Prompt Design - System prompt, search_strategy tool, retrieved chunks as tool results
+
+10\. Evaluation - Hand-written retrieval questions, pytest results, coverage.py
+
+11\. Tooling and Configuration - Python 3.11+, uv, .env, ingest/, agent/, tools/, sandbox/
